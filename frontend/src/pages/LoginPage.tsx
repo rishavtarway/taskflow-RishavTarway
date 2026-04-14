@@ -3,10 +3,10 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { authAPI } from '../../api/auth'
-import { useAuthStore } from '../../store/auth'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
+import { authAPI } from '../api/auth'
+import { useAuthStore } from '../store/auth'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -19,7 +19,7 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
-  const login = useAuthStore((state) => state.login)
+  const auth = useAuthStore()
 
   const {
     register,
@@ -35,7 +35,7 @@ export function LoginPage() {
 
     try {
       const response = await authAPI.login(data.email, data.password)
-      login(response.token, response.user)
+      auth.login(response.token, response.user)
       navigate('/projects')
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: string; fields?: Record<string, string> } } }

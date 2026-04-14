@@ -1,4 +1,5 @@
 import { client } from './client'
+import type { Task } from './tasks'
 
 export interface Project {
   id: string

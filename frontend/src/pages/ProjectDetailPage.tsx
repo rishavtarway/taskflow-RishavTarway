@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
-import { projectsAPI, type Project } from '../../api/projects'
-import { tasksAPI, type Task, type CreateTaskInput, type UpdateTaskInput } from '../../api/tasks'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Textarea } from '../ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { projectsAPI } from '../api/projects'
+import { tasksAPI, type Task, type CreateTaskInput, type UpdateTaskInput } from '../api/tasks'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog'
+} from '../components/ui/dialog'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -43,7 +43,7 @@ function TaskCard({
   const [isEditing, setIsEditing] = useState(false)
   const queryClient = useQueryClient()
 
-  const { register, handleSubmit, reset } = useForm<TaskForm>({
+  const { register, handleSubmit } = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       title: task.title,
