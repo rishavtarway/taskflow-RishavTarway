@@ -1,4 +1,4 @@
 -- Remove seed data
-DELETE FROM tasks WHERE project_id = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
-DELETE FROM projects WHERE id = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
-DELETE FROM users WHERE id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+DELETE FROM tasks WHERE title IN ('Design the homepage', 'Set up CI pipeline', 'Write documentation');
+DELETE FROM projects WHERE name = 'Demo Project';
+DELETE FROM users WHERE email = 'test@example.com';

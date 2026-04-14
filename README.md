@@ -1,137 +1,184 @@
-# TaskFlow - Task Management System
+# TaskFlow
 
-A full-stack task management system built with Go and React. Users can register, login, create projects, add tasks, and manage them through a clean UI.
+TaskFlow is a task management system built as a take-home assignment. Users can register, log in, create projects, and manage tasks with status and priority tracking.
 
-## Overview
-
-**Tech Stack:**
-- **Backend**: Go with Chi router, PostgreSQL 16, JWT authentication
-- **Frontend**: React 18 with TypeScript, React Query, Zustand, shadcn/ui
-- **Database**: PostgreSQL with golang-migrate for migrations
-- **Infrastructure**: Docker + Docker Compose v2
+Stack: Go (chi router), PostgreSQL 16, React 18 + TypeScript, shadcn/ui, Docker.
 
 ## Architecture Decisions
 
-**Why Chi router?**
-- Lightweight, fast, and idiomatic Go HTTP router
-- No dependencies beyond standard library (uses Go 1.22's built-in routing)
-- Clean middleware pattern with context propagation
+### Why did you structure things the way you did?
 
-**Why React Query over Redux?**
-- Automatic request deduplication and caching
-- Built-in loading/error states
-- Optimistic updates made simple
-- Less boilerplate than Redux
+I split the Go backend into handlers/models/config rather than putting everything in main.go because handlers grow fast and mixing DB logic with HTTP logic makes both harder to test. The models layer handles all database queries, keeping handlers thin (~20 lines each) and focused only on parsing input and writing responses.
 
-**Why golang-migrate over ORM auto-migrate?**
-- Explicit, version-controlled schema changes
-- Up and down migrations for safety
-- No magic schema inference that can cause issues
+For the frontend, I used React Query for server state because this app's state is almost entirely server state - projects and tasks come from the API. Redux would add boilerplate with no benefit at this scale. I used Zustand only for the auth token which is genuinely client state.
 
-**Tradeoffs made:**
-- No refresh tokens (single JWT with 24h expiry)
-- No role-based access control (owner-only project operations)
-- No WebSocket for real-time updates (polling via React Query)
-- Basic client-side task filtering (status/assignee)
+### What tradeoffs did you make?
+
+PATCH uses pointer fields (*string) to distinguish 'field not provided' from 'field set to empty string'. This adds verbosity in the handler (need to check for nil before including in query) but prevents accidental field zeroing when a client sends a partial update.
+
+I chose chi over gin because its middleware composition is cleaner for this size of API - gin's context type adds overhead I didn't need here.
+
+### What did you intentionally leave out and why?
+
+No refresh tokens - the spec says 24h JWT which is sufficient for an internal tool. In production I'd use rotating refresh tokens stored in httpOnly cookies with a Redis revocation list.
+
+No rate limiting - would add golang.org/x/time/rate per-IP middleware in production, but not needed for a take-home assignment.
+
+No role-based permissions beyond owner/non-owner - the spec only requires owner-level project control, so I kept it simple.
+
+The tasks table has a creator_id field to support the "project owner OR task creator" delete permission specified in the requirements.
 
 ## Running Locally
 
 ```bash
-# Clone the repository
-git clone https://github.com/rishavtarway/taskflow-rishavtarway.git
-cd taskflow-rishavtarway
-
-# Copy environment file
+git clone https://github.com/rishavtarway/taskflow-RishavTarway.git
+cd taskflow-RishavTarway
 cp .env.example .env
-
-# Start all services (PostgreSQL, migrations, API, frontend)
-docker compose up --build
-
-# Access the application
-# Frontend: http://localhost:3000
-# API: http://localhost:8080
+docker compose up
 ```
+
+App available at http://localhost:3000
+API available at http://localhost:8080
 
 ## Running Migrations
 
-Migrations run automatically on `docker compose up` via the migrate service. 
-
-To run manually:
-```bash
-docker compose run --rm migrate
-```
+Migrations run automatically when you run `docker compose up`. No manual steps needed.
 
 ## Test Credentials
 
-```
 Email:    test@example.com
 Password: password123
-```
 
 ## API Reference
 
-### Authentication
-
-**POST /auth/register**
+### POST /auth/register
+```bash
+curl -s -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John Doe","email":"john@example.com","password":"secret123"}'
+```
+Response 201:
 ```json
-// Request
-{ "name": "John Doe", "email": "john@example.com", "password": "secret123" }
-
-// Response 201
-{ "token": "eyJ...", "user": { "id": "...", "name": "John Doe", "email": "john@example.com" } }
+{
+  "token": "eyJ...",
+  "user": { "id": "uuid", "name": "John Doe", "email": "john@example.com" }
+}
 ```
 
-**POST /auth/login**
+### POST /auth/login
+```bash
+curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+Response 200:
 ```json
-// Request
-{ "email": "test@example.com", "password": "password123" }
-
-// Response 200
-{ "token": "eyJ...", "user": { ... } }
+{
+  "token": "eyJ...",
+  "user": { "id": "uuid", "name": "Test User", "email": "test@example.com" }
+}
 ```
 
-### Projects
+### GET /projects
+Requires `Authorization: Bearer <token>`
+```bash
+curl -s http://localhost:8080/projects \
+  -H "Authorization: Bearer <token>"
+```
+Response 200:
+```json
+{ "projects": [...] }
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /projects | List user's projects |
-| POST | /projects | Create new project |
-| GET | /projects/:id | Get project with tasks |
-| PATCH | /projects/:id | Update project (owner only) |
-| DELETE | /projects/:id | Delete project (owner only) |
+### POST /projects
+Requires `Authorization: Bearer <token>`
+```bash
+curl -s -X POST http://localhost:8080/projects \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"New Project","description":"Optional description"}'
+```
+Response 201: Returns created project object
 
-### Tasks
+### GET /projects/:id
+Requires `Authorization: Bearer <token>`
+Response 200: Returns project with tasks array
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /projects/:id/tasks | List tasks (?status= & ?assignee=) |
-| POST | /projects/:id/tasks | Create task |
-| PATCH | /tasks/:id | Update task |
-| DELETE | /tasks/:id | Delete task |
+### PATCH /projects/:id
+Requires `Authorization: Bearer <token>` (owner only)
+Response 200: Returns updated project
+Response 403: If not owner
+
+### DELETE /projects/:id
+Requires `Authorization: Bearer <token>` (owner only)
+Response 204: No content
+
+### GET /projects/:id/tasks
+Requires `Authorization: Bearer <token>`
+Query params: ?status=todo&assignee=uuid
+```bash
+curl -s "http://localhost:8080/projects/:id/tasks?status=todo" \
+  -H "Authorization: Bearer <token>"
+```
+Response 200:
+```json
+{ "tasks": [...] }
+```
+
+### POST /projects/:id/tasks
+Requires `Authorization: Bearer <token>`
+```bash
+curl -s -X POST http://localhost:8080/projects/:id/tasks \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"New task","priority":"high"}'
+```
+Response 201: Returns created task
+
+### PATCH /tasks/:id
+Requires `Authorization: Bearer <token>`
+```bash
+curl -s -X PATCH http://localhost:8080/tasks/:id \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"done"}'
+```
+Response 200: Returns updated task
+
+### DELETE /tasks/:id
+Requires `Authorization: Bearer <token>` (project owner or task creator)
+Response 204: No content
+Response 403: If not authorized
 
 ### Error Responses
 
 ```json
-// 400 Validation
+// 400 Validation error
 { "error": "validation failed", "fields": { "email": "is required" } }
 
-// 401 Unauthorized
+// 401 Unauthorized (no/invalid token)
 { "error": "unauthorized" }
 
-// 403 Forbidden
+// 403 Forbidden (authenticated but not allowed)
 { "error": "forbidden" }
 
-// 404 Not Found
+// 404 Not found
 { "error": "not found" }
+
+// 409 Conflict (duplicate email)
+{ "error": "email already exists" }
 ```
 
 ## What You'd Do With More Time
 
-1. **Real-time updates**: Implement WebSocket for live task updates across clients
-2. **Pagination**: Add cursor-based pagination to list endpoints
-3. **Refresh tokens**: Add JWT refresh mechanism for longer sessions
-4. **Dark mode**: Add theme toggle with localStorage persistence
-5. **Tests**: Write integration tests for auth and task endpoints
-6. **Drag-and-drop**: Add @dnd-kit for task reordering
-7. **Project stats**: Add `/projects/:id/stats` endpoint with task analytics
-8. **Rate limiting**: Add request rate limiting for API endpoints
+1. Replace offset-based pagination with cursor/keyset pagination — offset degrades at high page numbers with large tables. Use LIMIT with a last-seen-id for efficient navigation.
+
+2. Add integration tests using testcontainers-go with a real Postgres instance, covering the auth flow (register → login → get JWT → call protected endpoint) and task CRUD operations.
+
+3. Push real-time task updates via Server-Sent Events (SSE) — simpler than WebSockets for this use case, backend emits events on task mutations, frontend subscribes per-project.
+
+4. Add rotating refresh tokens stored in httpOnly cookies with Redis-backed revocation — current 24h JWT is fine for an assignment but production needs rotation.
+
+5. The optimistic update rollback currently uses React Query's onError context — I'd move to a proper mutation queue to handle concurrent edits to the same task gracefully.
+
+6. Rate limit the /auth/* endpoints — 10 requests per minute per IP using golang.org/x/time/rate to prevent brute force attacks.

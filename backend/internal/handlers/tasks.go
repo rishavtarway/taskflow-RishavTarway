@@ -114,7 +114,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := middleware.GetUserID(r.Context())
-	task, err := h.taskModel.Create(r.Context(), req.Title, req.Description, status, req.Priority, projectID, userID, req.DueDate)
+	task, err := h.taskModel.Create(r.Context(), req.Title, req.Description, status, req.Priority, projectID, req.AssigneeID, userID, req.DueDate)
 	if err != nil {
 		errors.WriteError(w, errors.InternalServerError())
 		return
@@ -151,9 +151,12 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := middleware.GetUserID(r.Context())
-	if project.OwnerID != userID && (task.AssigneeID == nil || *task.AssigneeID != userID) {
-		errors.WriteError(w, errors.Forbidden())
-		return
+	if project.OwnerID != userID {
+		hasCreatorAccess := task.CreatorID != nil && *task.CreatorID == userID
+		if !hasCreatorAccess {
+			errors.WriteError(w, errors.Forbidden())
+			return
+		}
 	}
 
 	var req UpdateTaskRequest
@@ -209,9 +212,12 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := middleware.GetUserID(r.Context())
-	if project.OwnerID != userID && (task.AssigneeID == nil || *task.AssigneeID != userID) {
-		errors.WriteError(w, errors.Forbidden())
-		return
+	if project.OwnerID != userID {
+		hasCreatorAccess := task.CreatorID != nil && *task.CreatorID == userID
+		if !hasCreatorAccess {
+			errors.WriteError(w, errors.Forbidden())
+			return
+		}
 	}
 
 	if err := h.taskModel.Delete(r.Context(), taskID); err != nil {
