@@ -297,7 +297,26 @@ export function ProjectDetailPage() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateTaskInput }) => tasksAPI.update(id, data),
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['project', id] })
+      const previousData = queryClient.getQueryData(['project', id])
+      queryClient.setQueryData(['project', id], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          tasks: old.tasks.map((task: Task) =>
+            task.id === variables.id ? { ...task, ...variables.data } : task
+          ),
+        }
+      })
+      return { previousData }
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['project', id], context.previousData)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['project', id] })
     },
   })
