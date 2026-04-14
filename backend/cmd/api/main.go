@@ -70,6 +70,11 @@ func main() {
 			r.Route("/tasks", func(r chi.Router) {
 				r.Get("/", taskHandler.ListTasks)
 				r.Post("/", taskHandler.CreateTask)
+
+				r.Route("/{taskID}", func(r chi.Router) {
+					r.Patch("/", taskHandler.UpdateTask)
+					r.Delete("/", taskHandler.DeleteTask)
+				})
 			})
 		})
 	})

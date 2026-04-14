@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,7 +26,7 @@ services:
       DATABASE_URL: postgres://taskflow:taskflow_dev@postgres:5432/taskflow?sslmode=disable
     volumes:
       - ./backend/migrations:/migrations
-    command: up
+    command: -path /migrations -database postgres://taskflow:taskflow_dev@postgres:5432/taskflow?sslmode=disable up
     restart: on-failure:3
 
   api:

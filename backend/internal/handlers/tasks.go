@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/rishavtarway/taskflow/internal/errors"
@@ -50,8 +51,7 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectIDStr := r.Context().Value("projectID").(string)
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid project id"))
 		return
@@ -84,8 +84,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectIDStr := r.Context().Value("projectID").(string)
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid project id"))
 		return
@@ -132,7 +131,7 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := uuid.Parse(r.Context().Value("taskID").(string))
+	taskID, err := uuid.Parse(chi.URLParam(r, "taskID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid task id"))
 		return
@@ -193,7 +192,7 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := uuid.Parse(r.Context().Value("taskID").(string))
+	taskID, err := uuid.Parse(chi.URLParam(r, "taskID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid task id"))
 		return

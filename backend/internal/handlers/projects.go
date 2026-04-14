@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/rishavtarway/taskflow/internal/errors"
@@ -85,7 +86,7 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID, err := uuid.Parse(r.Context().Value("projectID").(string))
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid project id"))
 		return
@@ -113,7 +114,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID, err := uuid.Parse(r.Context().Value("projectID").(string))
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid project id"))
 		return
@@ -159,7 +160,7 @@ func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID, err := uuid.Parse(r.Context().Value("projectID").(string))
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
 		errors.WriteError(w, errors.BadRequest("invalid project id"))
 		return
